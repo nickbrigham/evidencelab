@@ -36,13 +36,29 @@ st.markdown("""
         color: #000000 !important;
     }
     
-    /* Make chat input taller */
-    [data-testid="stChatInput"] {
-        padding-bottom: 20px;
+    /* Chat input - make it much bigger */
+    .stChatInput {
+        padding: 10px 0 30px 0 !important;
     }
-    [data-testid="stChatInput"] textarea {
-        min-height: 60px !important;
-        font-size: 16px !important;
+    .stChatInput > div {
+        background-color: #ffffff !important;
+        border: 2px solid #1565c0 !important;
+        border-radius: 12px !important;
+        padding: 10px !important;
+    }
+    .stChatInput textarea {
+        min-height: 100px !important;
+        height: 100px !important;
+        font-size: 18px !important;
+        line-height: 1.5 !important;
+        color: #000000 !important;
+        background-color: #ffffff !important;
+        padding: 15px !important;
+        overflow-y: auto !important;
+    }
+    .stChatInput button {
+        height: 50px !important;
+        width: 50px !important;
     }
     
     .query-badge { display: inline-block; padding: 0.25rem 0.75rem; background-color: #e3f2fd; color: #1565c0 !important; border-radius: 20px; font-size: 0.8rem; font-weight: 500; margin-bottom: 0.5rem; }
@@ -63,11 +79,12 @@ st.markdown("""
             color: #000000 !important;
         }
         
-        /* Larger input on mobile */
-        [data-testid="stChatInput"] textarea {
-            min-height: 80px !important;
-            font-size: 18px !important;
-            padding: 15px !important;
+        /* Even larger input on mobile */
+        .stChatInput textarea {
+            min-height: 120px !important;
+            height: 120px !important;
+            font-size: 20px !important;
+            padding: 20px !important;
         }
     }
     @media (min-width: 769px) { .mobile-menu-hint { display: none !important; } }
