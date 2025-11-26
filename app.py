@@ -3,6 +3,7 @@ EvidenceLab - Evidence-Based Peptide & HRT Research Assistant
 Built with Streamlit + Perplexity AI
 """
 import streamlit as st
+import os
 from config import APP_NAME, APP_DESCRIPTION, COMPOUND_CATEGORIES, RESPONSE_TARGETS
 from utils.query_classifier import classify_query, get_query_context
 from utils.perplexity_client import PerplexityClient
@@ -19,67 +20,26 @@ st.set_page_config(
 # Custom CSS for better styling
 st.markdown("""
 <style>
-    /* Main container */
-    .main > div {
-        padding-top: 2rem;
-    }
-    
-    /* Chat messages */
-    .stChatMessage {
-        background-color: #f8f9fa;
-        border-radius: 10px;
-        padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    /* Query type badge */
-    .query-badge {
-        display: inline-block;
-        padding: 0.25rem 0.75rem;
-        background-color: #e3f2fd;
-        color: #1565c0;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 500;
-        margin-bottom: 0.5rem;
-    }
-    
-    /* Compound tag */
-    .compound-tag {
-        display: inline-block;
-        padding: 0.2rem 0.5rem;
-        background-color: #e8f5e9;
-        color: #2e7d32;
-        border-radius: 4px;
-        font-size: 0.75rem;
-        margin-right: 0.25rem;
-    }
-    
-    /* Disclaimer box */
-    .disclaimer-box {
-        background-color: #fff3e0;
-        border-left: 4px solid #ff9800;
-        padding: 1rem;
-        margin: 1rem 0;
-        border-radius: 4px;
-    }
-    
-    /* Sidebar styling */
-    .css-1d391kg {
-        padding-top: 2rem;
-    }
-    
-    /* Quick actions buttons */
-    .stButton > button {
-        width: 100%;
-        margin-bottom: 0.5rem;
-    }
-    
-    /* Hide Streamlit branding */
+    .main > div { padding-top: 2rem; }
+    .stChatMessage { background-color: #f8f9fa; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+    .query-badge { display: inline-block; padding: 0.25rem 0.75rem; background-color: #e3f2fd; color: #1565c0; border-radius: 20px; font-size: 0.8rem; font-weight: 500; margin-bottom: 0.5rem; }
+    .compound-tag { display: inline-block; padding: 0.2rem 0.5rem; background-color: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.75rem; margin-right: 0.25rem; }
+    .disclaimer-box { background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 1rem; margin: 1rem 0; border-radius: 4px; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
+
+
+def get_api_key():
+    """Get API key from Streamlit secrets or environment."""
+    # Try Streamlit secrets first (for cloud deployment)
+    try:
+        return st.secrets["PERPLEXITY_API_KEY"]
+    except Exception:
+        pass
+    # Fall back to environment variable
+    return os.getenv("PERPLEXITY_API_KEY")
 
 
 def init_session_state():
@@ -87,9 +47,17 @@ def init_session_state():
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "perplexity_client" not in st.session_state:
-        st.session_state.perplexity_client = None
-    if "api_key_set" not in st.session_state:
-        st.session_state.api_key_set = False
+        api_key = get_api_key()
+        if api_key:
+            try:
+                st.session_state.perplexity_client = PerplexityClient(api_key)
+                st.session_state.api_key_set = True
+            except Exception:
+                st.session_state.perplexity_client = None
+                st.session_state.api_key_set = False
+        else:
+            st.session_state.perplexity_client = None
+            st.session_state.api_key_set = False
 
 
 def render_sidebar():
@@ -101,22 +69,13 @@ def render_sidebar():
         
         st.divider()
         
-        # API Key input
-        st.subheader("🔑 API Configuration")
-        api_key = st.text_input(
-            "Perplexity API Key",
-            type="password",
-            help="Get your API key from https://www.perplexity.ai/settings/api"
-        )
-        
-        if api_key:
-            try:
-                st.session_state.perplexity_client = PerplexityClient(api_key)
-                st.session_state.api_key_set = True
-                st.success("✅ API key set!")
-            except Exception as e:
-                st.error(f"Invalid API key: {e}")
-                st.session_state.api_key_set = False
+        # API Status
+        st.subheader("🔑 API Status")
+        if st.session_state.api_key_set:
+            st.success("✅ Connected")
+        else:
+            st.error("❌ API key not configured")
+            st.caption("Contact admin to set up API access")
         
         st.divider()
         
@@ -187,7 +146,6 @@ def add_quick_query(query: str):
 def render_message(message: dict):
     """Render a single chat message with metadata."""
     with st.chat_message(message["role"]):
-        # If assistant message, show query type badge
         if message["role"] == "assistant" and "metadata" in message:
             meta = message["metadata"]
             cols = st.columns([1, 4])
@@ -226,23 +184,7 @@ def main():
     
     # Check if API key is set
     if not st.session_state.api_key_set:
-        st.info("👈 Enter your Perplexity API key in the sidebar to get started.")
-        st.markdown("""
-        ### Getting Started
-        
-        1. **Get a Perplexity API key** from [perplexity.ai/settings/api](https://www.perplexity.ai/settings/api)
-        2. **Enter your API key** in the sidebar
-        3. **Ask questions** about peptides, hormones, and therapeutic compounds
-        
-        ### Example Questions
-        
-        - "What is BPC-157 and what does it do?"
-        - "Give me the TLDR on testosterone replacement therapy"
-        - "Compare BPC-157 vs TB-500 for injury healing"
-        - "What's the dosage protocol for Ipamorelin?"
-        - "When will I see results from CJC-1295?"
-        - "What are the side effects of MK-677?"
-        """)
+        st.error("⚠️ API not configured. Please contact the administrator.")
         return
     
     # Display chat history
@@ -251,7 +193,6 @@ def main():
     
     # Chat input
     if prompt := st.chat_input("Ask about peptides, hormones, or therapeutic compounds..."):
-        # Add user message
         st.session_state.messages.append({"role": "user", "content": prompt})
         
         with st.chat_message("user"):
@@ -259,11 +200,9 @@ def main():
         
         # Classify query
         query_type, compounds, confidence = classify_query(prompt)
-        query_context = get_query_context(query_type)
         
         # Generate response
         with st.chat_message("assistant"):
-            # Show what type of response we're generating
             status_cols = st.columns([2, 3])
             with status_cols[0]:
                 st.caption(f"📝 Response type: **{query_type.title()}**")
@@ -271,11 +210,9 @@ def main():
                 if compounds:
                     st.caption(f"🧪 Compounds: {', '.join(compounds)}")
             
-            # Create placeholder for streaming response
             message_placeholder = st.empty()
             full_response = ""
             
-            # Stream the response
             try:
                 for chunk in st.session_state.perplexity_client.stream_query(
                     user_message=prompt,
@@ -283,8 +220,8 @@ def main():
                     compounds=compounds,
                     conversation_history=[
                         {"role": m["role"], "content": m["content"]} 
-                        for m in st.session_state.messages[:-1]  # Exclude current message
-                    ][-10:]  # Keep last 10 messages for context
+                        for m in st.session_state.messages[:-1]
+                    ][-10:]
                 ):
                     full_response += chunk
                     message_placeholder.markdown(full_response + "▌")
@@ -292,10 +229,9 @@ def main():
                 message_placeholder.markdown(full_response)
                 
             except Exception as e:
-                full_response = f"❌ Error generating response: {str(e)}\n\nPlease check your API key and try again."
+                full_response = f"❌ Error generating response: {str(e)}\n\nPlease try again."
                 message_placeholder.markdown(full_response)
         
-        # Save assistant message with metadata
         st.session_state.messages.append({
             "role": "assistant",
             "content": full_response,
