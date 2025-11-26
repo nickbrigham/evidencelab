@@ -15,56 +15,54 @@ st.markdown("""
     .main > div { padding-top: 2rem; }
     
     /* Force black text everywhere */
-    .stChatMessage, .stChatMessage p, .stChatMessage li, .stChatMessage span {
+    * { color: #000000; }
+    .stChatMessage, .stChatMessage p, .stChatMessage li, .stChatMessage span, .stChatMessage div {
         color: #000000 !important;
+        background-color: #f8f9fa !important;
     }
     .stChatMessage { 
-        background-color: #f8f9fa !important; 
         border-radius: 10px; 
         padding: 1rem; 
         margin-bottom: 1rem; 
     }
-    
-    /* Assistant message specific */
-    [data-testid="stChatMessage"] {
-        background-color: #f8f9fa !important;
-    }
-    [data-testid="stChatMessage"] p,
-    [data-testid="stChatMessage"] li,
-    [data-testid="stChatMessage"] span,
-    [data-testid="stChatMessage"] div {
+    [data-testid="stChatMessage"] * {
         color: #000000 !important;
     }
     
-    /* Chat input - make it much bigger */
-    .stChatInput {
-        padding: 10px 0 30px 0 !important;
+    /* Custom input box styling */
+    .input-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        padding: 20px;
+        border-top: 2px solid #1565c0;
+        z-index: 1000;
     }
-    .stChatInput > div {
+    .stTextArea textarea {
+        min-height: 80px !important;
+        font-size: 18px !important;
+        color: #000000 !important;
         background-color: #ffffff !important;
         border: 2px solid #1565c0 !important;
-        border-radius: 12px !important;
-        padding: 10px !important;
-    }
-    .stChatInput textarea {
-        min-height: 100px !important;
-        height: 100px !important;
-        font-size: 18px !important;
-        line-height: 1.5 !important;
-        color: #000000 !important;
-        background-color: #ffffff !important;
+        border-radius: 10px !important;
         padding: 15px !important;
-        overflow-y: auto !important;
     }
-    .stChatInput button {
-        height: 50px !important;
-        width: 50px !important;
+    .stTextArea label {
+        color: #000000 !important;
+        font-size: 16px !important;
+    }
+    
+    /* Add padding at bottom for fixed input */
+    .main .block-container {
+        padding-bottom: 180px !important;
     }
     
     .query-badge { display: inline-block; padding: 0.25rem 0.75rem; background-color: #e3f2fd; color: #1565c0 !important; border-radius: 20px; font-size: 0.8rem; font-weight: 500; margin-bottom: 0.5rem; }
     .compound-tag { display: inline-block; padding: 0.2rem 0.5rem; background-color: #e8f5e9; color: #2e7d32 !important; border-radius: 4px; font-size: 0.75rem; margin-right: 0.25rem; }
     .disclaimer-box { background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 1rem; margin: 1rem 0; border-radius: 4px; color: #000000 !important; }
-    .disclaimer-box strong { color: #000000 !important; }
+    .disclaimer-box * { color: #000000 !important; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     
@@ -74,17 +72,13 @@ st.markdown("""
         [data-testid="collapsedControl"] svg { stroke: white !important; width: 24px !important; height: 24px !important; }
         .mobile-menu-hint { display: block !important; background-color: #1565c0; color: white !important; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-weight: 500; }
         
-        /* Force black text on mobile */
-        .stMarkdown, .stMarkdown p, .stMarkdown li, .stMarkdown span, .stMarkdown div {
-            color: #000000 !important;
+        .stTextArea textarea {
+            min-height: 100px !important;
+            font-size: 20px !important;
         }
         
-        /* Even larger input on mobile */
-        .stChatInput textarea {
-            min-height: 120px !important;
-            height: 120px !important;
-            font-size: 20px !important;
-            padding: 20px !important;
+        .main .block-container {
+            padding-bottom: 220px !important;
         }
     }
     @media (min-width: 769px) { .mobile-menu-hint { display: none !important; } }
@@ -183,8 +177,6 @@ def render_message(message):
 
 def generate_response(prompt):
     st.session_state.messages.append({"role": "user", "content": prompt})
-    with st.chat_message("user"):
-        st.markdown(prompt)
     query_type, compounds, confidence = classify_query(prompt)
     with st.chat_message("assistant"):
         status_cols = st.columns([2, 3])
@@ -216,14 +208,36 @@ def main():
     if not st.session_state.api_key_set:
         st.error("⚠️ API not configured.")
         return
+    
+    # Display chat history
     for message in st.session_state.messages:
         render_message(message)
+    
+    # Handle pending query from sidebar
     if st.session_state.pending_query:
         prompt = st.session_state.pending_query
         st.session_state.pending_query = None
         generate_response(prompt)
-    if prompt := st.chat_input("Ask about peptides, hormones, or therapeutic compounds..."):
-        generate_response(prompt)
+        st.rerun()
+    
+    # Input area using text_area + button (more controllable than chat_input)
+    st.divider()
+    user_input = st.text_area(
+        "Your question:",
+        placeholder="Ask about peptides, hormones, or therapeutic compounds...",
+        height=100,
+        key="user_input"
+    )
+    
+    col1, col2, col3 = st.columns([1, 1, 4])
+    with col1:
+        send_clicked = st.button("🚀 Send", use_container_width=True, type="primary")
+    with col2:
+        clear_input = st.button("Clear", use_container_width=True)
+    
+    if send_clicked and user_input.strip():
+        generate_response(user_input.strip())
+        st.rerun()
 
 
 if __name__ == "__main__":
