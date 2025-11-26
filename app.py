@@ -9,7 +9,6 @@ from utils.query_classifier import classify_query, get_query_context
 from utils.perplexity_client import PerplexityClient
 from utils.prompts import MEDICAL_DISCLAIMER
 
-# Page config
 st.set_page_config(
     page_title=APP_NAME,
     page_icon="🧬",
@@ -17,33 +16,61 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
 st.markdown("""
 <style>
     .main > div { padding-top: 2rem; }
     .stChatMessage { background-color: #f8f9fa; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
     .query-badge { display: inline-block; padding: 0.25rem 0.75rem; background-color: #e3f2fd; color: #1565c0; border-radius: 20px; font-size: 0.8rem; font-weight: 500; margin-bottom: 0.5rem; }
     .compound-tag { display: inline-block; padding: 0.2rem 0.5rem; background-color: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.75rem; margin-right: 0.25rem; }
-    .disclaimer-box { background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 1rem; margin: 1rem 0; border-radius: 4px; }
+    .disclaimer-box { 
+        background-color: #fff3e0; 
+        border-left: 4px solid #ff9800; 
+        padding: 1rem; 
+        margin: 1rem 0; 
+        border-radius: 4px; 
+        color: #000000 !important;
+    }
+    .disclaimer-box strong { color: #000000 !important; }
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
+    @media (max-width: 768px) {
+        [data-testid="collapsedControl"] {
+            background-color: #1565c0 !important;
+            border-radius: 8px !important;
+            padding: 8px !important;
+        }
+        [data-testid="collapsedControl"] svg {
+            stroke: white !important;
+            width: 24px !important;
+            height: 24px !important;
+        }
+        .mobile-menu-hint {
+            display: block !important;
+            background-color: #1565c0;
+            color: white !important;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-weight: 500;
+        }
+    }
+    @media (min-width: 769px) {
+        .mobile-menu-hint { display: none !important; }
+    }
 </style>
 """, unsafe_allow_html=True)
 
 
 def get_api_key():
-    """Get API key from Streamlit secrets or environment."""
-    # Try Streamlit secrets first (for cloud deployment)
     try:
         return st.secrets["PERPLEXITY_API_KEY"]
     except Exception:
         pass
-    # Fall back to environment variable
     return os.getenv("PERPLEXITY_API_KEY")
 
 
 def init_session_state():
-    """Initialize session state variables."""
     if "messages" not in st.session_state:
         st.session_state.messages = []
     if "perplexity_client" not in st.session_state:
@@ -61,38 +88,21 @@ def init_session_state():
 
 
 def render_sidebar():
-    """Render the sidebar with settings and quick actions."""
     with st.sidebar:
         st.image("https://em-content.zobj.net/source/apple/391/dna_1f9ec.png", width=60)
         st.title(APP_NAME)
         st.caption(APP_DESCRIPTION)
-        
         st.divider()
-        
-        # API Status
         st.subheader("🔑 API Status")
         if st.session_state.api_key_set:
             st.success("✅ Connected")
         else:
             st.error("❌ API key not configured")
             st.caption("Contact admin to set up API access")
-        
         st.divider()
-        
-        # Quick compound selection
         st.subheader("🧪 Quick Compound Lookup")
-        category = st.selectbox(
-            "Category",
-            options=list(COMPOUND_CATEGORIES.keys()),
-            format_func=lambda x: x.title()
-        )
-        
-        compound = st.selectbox(
-            "Compound",
-            options=COMPOUND_CATEGORIES[category]
-        )
-        
-        # Quick action buttons
+        category = st.selectbox("Category", options=list(COMPOUND_CATEGORIES.keys()), format_func=lambda x: x.title())
+        compound = st.selectbox("Compound", options=COMPOUND_CATEGORIES[category])
         col1, col2 = st.columns(2)
         with col1:
             if st.button("📋 TLDR", use_container_width=True):
@@ -100,7 +110,6 @@ def render_sidebar():
         with col2:
             if st.button("📊 Overview", use_container_width=True):
                 add_quick_query(f"What is {compound}?")
-        
         col3, col4 = st.columns(2)
         with col3:
             if st.button("💉 Dosage", use_container_width=True):
@@ -108,7 +117,6 @@ def render_sidebar():
         with col4:
             if st.button("⏱️ Timeline", use_container_width=True):
                 add_quick_query(f"When will I see results from {compound}?")
-        
         col5, col6 = st.columns(2)
         with col5:
             if st.button("✅ Benefits", use_container_width=True):
@@ -116,35 +124,25 @@ def render_sidebar():
         with col6:
             if st.button("⚠️ Side Effects", use_container_width=True):
                 add_quick_query(f"What are the side effects of {compound}?")
-        
         st.divider()
-        
-        # Response type info
         with st.expander("📖 Response Types"):
             for qtype, info in RESPONSE_TARGETS.items():
                 st.markdown(f"**{qtype.title()}**: {info['description']} ({info['min']}-{info['max']} words)")
-        
         st.divider()
-        
-        # Clear chat button
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.messages = []
             st.rerun()
-        
-        # Footer
         st.divider()
         st.caption("Built with ❤️ for evidence-based health research")
         st.caption("⚠️ Not medical advice. Consult a healthcare provider.")
 
 
 def add_quick_query(query: str):
-    """Add a quick query to the chat."""
     st.session_state.messages.append({"role": "user", "content": query})
     st.rerun()
 
 
 def render_message(message: dict):
-    """Render a single chat message with metadata."""
     with st.chat_message(message["role"]):
         if message["role"] == "assistant" and "metadata" in message:
             meta = message["metadata"]
@@ -155,12 +153,10 @@ def render_message(message: dict):
                 if meta.get("compounds"):
                     compound_tags = " ".join([f'<span class="compound-tag">{c}</span>' for c in meta["compounds"]])
                     st.markdown(compound_tags, unsafe_allow_html=True)
-        
         st.markdown(message["content"])
 
 
 def render_disclaimer():
-    """Render the medical disclaimer at the top of the chat."""
     st.markdown("""
     <div class="disclaimer-box">
         <strong>⚠️ Important Disclaimer</strong><br>
@@ -171,37 +167,31 @@ def render_disclaimer():
     """, unsafe_allow_html=True)
 
 
+def render_mobile_menu_hint():
+    st.markdown("""
+    <div class="mobile-menu-hint">
+        ☰ Tap the arrow in the top-left corner for compound quick-lookup
+    </div>
+    """, unsafe_allow_html=True)
+
+
 def main():
-    """Main app function."""
     init_session_state()
     render_sidebar()
-    
-    # Main chat area
     st.title("🧬 EvidenceLab")
     st.markdown("*Evidence-based peptide & HRT research assistant*")
-    
+    render_mobile_menu_hint()
     render_disclaimer()
-    
-    # Check if API key is set
     if not st.session_state.api_key_set:
         st.error("⚠️ API not configured. Please contact the administrator.")
         return
-    
-    # Display chat history
     for message in st.session_state.messages:
         render_message(message)
-    
-    # Chat input
     if prompt := st.chat_input("Ask about peptides, hormones, or therapeutic compounds..."):
         st.session_state.messages.append({"role": "user", "content": prompt})
-        
         with st.chat_message("user"):
             st.markdown(prompt)
-        
-        # Classify query
         query_type, compounds, confidence = classify_query(prompt)
-        
-        # Generate response
         with st.chat_message("assistant"):
             status_cols = st.columns([2, 3])
             with status_cols[0]:
@@ -209,10 +199,8 @@ def main():
             with status_cols[1]:
                 if compounds:
                     st.caption(f"🧪 Compounds: {', '.join(compounds)}")
-            
             message_placeholder = st.empty()
             full_response = ""
-            
             try:
                 for chunk in st.session_state.perplexity_client.stream_query(
                     user_message=prompt,
@@ -225,13 +213,10 @@ def main():
                 ):
                     full_response += chunk
                     message_placeholder.markdown(full_response + "▌")
-                
                 message_placeholder.markdown(full_response)
-                
             except Exception as e:
                 full_response = f"❌ Error generating response: {str(e)}\n\nPlease try again."
                 message_placeholder.markdown(full_response)
-        
         st.session_state.messages.append({
             "role": "assistant",
             "content": full_response,
