@@ -20,7 +20,6 @@ class PerplexityClient:
         try:
             parsed = urlparse(url)
             domain = parsed.netloc
-            # Remove www. prefix if present
             if domain.startswith("www."):
                 domain = domain[4:]
             return domain
@@ -41,7 +40,8 @@ class PerplexityClient:
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": specific_prompt + "\n\n---\nOriginal question: " + user_message}
-            ]
+            ],
+            "return_citations": True
         }
         
         try:
@@ -51,19 +51,24 @@ class PerplexityClient:
             
             content = data["choices"][0]["message"]["content"]
             
-            # Yield content in chunks to simulate streaming
+            # Yield content in chunks
             chunk_size = 30
             for i in range(0, len(content), chunk_size):
                 yield content[i:i+chunk_size]
             
-            # Get citations from response
-            citations = data.get("citations", [])
+            # Debug: show all keys in response
+            yield f"\n\n*[Debug: API keys: {list(data.keys())}]*"
+            
+            # Try different possible citation field names
+            citations = data.get("citations", []) or data.get("sources", []) or data.get("references", [])
             
             if citations:
                 yield "\n\n---\n\n**📚 Sources:**\n"
                 for i, url in enumerate(citations, 1):
                     short_name = self.shorten_url(url)
                     yield f"\n[{i}] [{short_name}]({url})"
+            else:
+                yield "\n\n*[Debug: No citations found in response]*"
             
             yield MEDICAL_DISCLAIMER
             
