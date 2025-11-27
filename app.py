@@ -2,42 +2,26 @@
 EvidenceLab - Evidence-Based Peptide & HRT Research Assistant
 """
 import streamlit as st
+import streamlit.components.v1 as components
 import os
 from config import APP_NAME, APP_DESCRIPTION, COMPOUND_CATEGORIES, RESPONSE_TARGETS
 from utils.query_classifier import classify_query, get_query_context
 from utils.perplexity_client import PerplexityClient
 from utils.prompts import MEDICAL_DISCLAIMER
 
-st.set_page_config(page_title=APP_NAME, page_icon="🧬", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title=APP_NAME, page_icon="🧬", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .disclaimer-box { background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 1rem; margin: 1rem 0; border-radius: 4px; }
-    .query-badge { display: inline-block; padding: 0.25rem 0.75rem; background-color: #e3f2fd; color: #1565c0; border-radius: 20px; font-size: 0.8rem; font-weight: 500; margin-bottom: 0.5rem; }
-    .compound-tag { display: inline-block; padding: 0.2rem 0.5rem; background-color: #e8f5e9; color: #2e7d32; border-radius: 4px; font-size: 0.75rem; margin-right: 0.25rem; }
     @media (max-width: 768px) {
         .mobile-menu-hint { display: block; background-color: #1565c0; color: white; padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1rem; text-align: center; font-weight: 500; }
     }
     @media (min-width: 769px) { .mobile-menu-hint { display: none; } }
 </style>
 """, unsafe_allow_html=True)
-
-
-def close_sidebar():
-    """Inject JavaScript to close sidebar on mobile."""
-    st.markdown("""
-        <script>
-            var sidebar = window.parent.document.querySelector('[data-testid="stSidebar"]');
-            if (sidebar && window.innerWidth <= 768) {
-                var closeBtn = window.parent.document.querySelector('[data-testid="stSidebar"] button[kind="header"]');
-                if (closeBtn) closeBtn.click();
-                sidebar.style.display = 'none';
-                setTimeout(function() { sidebar.style.display = ''; }, 100);
-            }
-        </script>
-    """, unsafe_allow_html=True)
 
 
 def get_api_key():
@@ -53,8 +37,6 @@ def init_session_state():
         st.session_state.messages = []
     if "pending_query" not in st.session_state:
         st.session_state.pending_query = None
-    if "close_sidebar" not in st.session_state:
-        st.session_state.close_sidebar = False
     if "perplexity_client" not in st.session_state:
         api_key = get_api_key()
         if api_key:
@@ -67,11 +49,6 @@ def init_session_state():
         else:
             st.session_state.perplexity_client = None
             st.session_state.api_key_set = False
-
-
-def set_query(query):
-    st.session_state.pending_query = query
-    st.session_state.close_sidebar = True
 
 
 def render_sidebar():
@@ -92,24 +69,30 @@ def render_sidebar():
         col1, col2 = st.columns(2)
         with col1:
             if st.button("📋 TLDR", use_container_width=True):
-                set_query(f"Give me the TLDR on {compound}")
+                st.session_state.pending_query = f"Give me the TLDR on {compound}"
+                st.rerun()
         with col2:
             if st.button("📊 Overview", use_container_width=True):
-                set_query(f"What is {compound}?")
+                st.session_state.pending_query = f"What is {compound}?"
+                st.rerun()
         col3, col4 = st.columns(2)
         with col3:
             if st.button("💉 Dosage", use_container_width=True):
-                set_query(f"What's the dosage for {compound}?")
+                st.session_state.pending_query = f"What's the dosage for {compound}?"
+                st.rerun()
         with col4:
             if st.button("⏱️ Timeline", use_container_width=True):
-                set_query(f"When will I see results from {compound}?")
+                st.session_state.pending_query = f"When will I see results from {compound}?"
+                st.rerun()
         col5, col6 = st.columns(2)
         with col5:
             if st.button("✅ Benefits", use_container_width=True):
-                set_query(f"What are the benefits of {compound}?")
+                st.session_state.pending_query = f"What are the benefits of {compound}?"
+                st.rerun()
         with col6:
             if st.button("⚠️ Side Effects", use_container_width=True):
-                set_query(f"What are the side effects of {compound}?")
+                st.session_state.pending_query = f"What are the side effects of {compound}?"
+                st.rerun()
         st.divider()
         if st.button("🗑️ Clear Chat", use_container_width=True):
             st.session_state.messages = []
@@ -149,11 +132,6 @@ def generate_response(prompt):
 def main():
     init_session_state()
     render_sidebar()
-    
-    # Close sidebar if flagged (after button click on mobile)
-    if st.session_state.close_sidebar:
-        close_sidebar()
-        st.session_state.close_sidebar = False
     
     st.title("🧬 EvidenceLab")
     st.markdown("*Evidence-based peptide & HRT research assistant*")
