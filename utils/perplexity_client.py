@@ -2,6 +2,7 @@
 Perplexity API Client for EvidenceLab
 """
 import requests
+from urllib.parse import urlparse
 from config import PERPLEXITY_API_KEY, PERPLEXITY_BASE_URL, PERPLEXITY_MODEL
 from utils.prompts import SYSTEM_PROMPT, get_query_prompt, MEDICAL_DISCLAIMER
 
@@ -13,6 +14,18 @@ class PerplexityClient:
             raise ValueError("PERPLEXITY_API_KEY not set.")
         self.base_url = "https://api.perplexity.ai/chat/completions"
         self.model = PERPLEXITY_MODEL
+    
+    def shorten_url(self, url):
+        """Extract domain name from URL for display."""
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc
+            # Remove www. prefix if present
+            if domain.startswith("www."):
+                domain = domain[4:]
+            return domain
+        except:
+            return url
     
     def stream_query(self, user_message, query_type="overview", compounds=None, conversation_history=None):
         """Query Perplexity and return response with citations."""
@@ -49,7 +62,8 @@ class PerplexityClient:
             if citations:
                 yield "\n\n---\n\n**📚 Sources:**\n"
                 for i, url in enumerate(citations, 1):
-                    yield f"\n[{i}] [{url}]({url})"
+                    short_name = self.shorten_url(url)
+                    yield f"\n[{i}] [{short_name}]({url})"
             
             yield MEDICAL_DISCLAIMER
             
