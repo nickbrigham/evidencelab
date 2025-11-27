@@ -23,23 +23,64 @@ class PerplexityClient:
         try:
             response = self.client.chat.completions.create(model=self.model, messages=messages)
             content = response.choices[0].message.content
-            content_with_disclaimer = content + MEDICAL_DISCLAIMER
-            return {"content": content_with_disclaimer, "citations": [], "model": response.model, "query_type": query_type, "compounds": compounds}
+            
+            # Extract citations from response object if available
+            citations = []
+            if hasattr(response, 'citations') and response.citations:
+                citations = response.citations
+            
+            return {
+                "content": content,
+                "citations": citations,
+                "model": response.model,
+                "query_type": query_type,
+                "compounds": compounds
+            }
         except Exception as e:
-            return {"content": "Error: " + str(e), "citations": [], "model": None, "query_type": query_type, "compounds": compounds, "error": str(e)}
+            return {
+                "content": "Error: " + str(e),
+                "citations": [],
+                "model": None,
+                "query_type": query_type,
+                "compounds": compounds,
+                "error": str(e)
+            }
     
     def stream_query(self, user_message, query_type="overview", compounds=None, conversation_history=None):
+        """Stream a query response and return citations at the end."""
         specific_prompt = get_query_prompt(query_type, user_message, compounds or [])
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": specific_prompt + "\n\n---\nOriginal question: " + user_message}
         ]
         try:
-            stream = self.client.chat.completions.create(model=self.model, messages=messages, stream=True)
-            for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+            # Use non-streaming to get citations, then yield content
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                stream=False
+            )
+            
+            content = response.choices[0].message.content
+            
+            # Yield content in chunks to simulate streaming
+            chunk_size = 20
+            for i in range(0, len(content), chunk_size):
+                yield content[i:i+chunk_size]
+            
+            # Get citations if available
+            citations = []
+            if hasattr(response, 'citations') and response.citations:
+                citations = response.citations
+            
+            # Yield citations section
+            if citations:
+                yield "\n\n---\n\n**📚 Sources:**\n"
+                for i, url in enumerate(citations, 1):
+                    yield f"\n[{i}] {url}"
+            
             yield MEDICAL_DISCLAIMER
+            
         except Exception as e:
             yield "\n\nError: " + str(e)
 
