@@ -15,6 +15,27 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .disclaimer-box { background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 1rem; margin: 1rem 0; border-radius: 4px; }
+    
+    /* Make chat input much more visible */
+    [data-testid="stChatInput"] {
+        background-color: #e3f2fd !important;
+        border-radius: 15px !important;
+        padding: 15px !important;
+        margin-top: 20px !important;
+        box-shadow: 0 4px 12px rgba(21, 101, 192, 0.3) !important;
+    }
+    [data-testid="stChatInput"] > div {
+        border: 3px solid #1565c0 !important;
+        border-radius: 12px !important;
+        background-color: #ffffff !important;
+    }
+    [data-testid="stChatInput"] textarea {
+        font-size: 18px !important;
+    }
+    [data-testid="stChatInput"] textarea::placeholder {
+        color: #666666 !important;
+        font-size: 16px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
